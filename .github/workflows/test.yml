@@ -12,19 +12,23 @@ jobs:
     strategy:
       matrix:
         python-version:
-        - '3.7'
-        - '3.8'
         - '3.9'
         - '3.10'
         - '3.11'
+        - '3.12'
+        - '3.13'
+
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
+      PYTHONUNBUFFERED: 1
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -41,11 +45,7 @@ jobs:
     - name: Django 3.2.x Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-django32"
-
-    - name: Django 4.0.x Test
-      run: |
-        tox -e "py${PYTHON_VERSION/\./}-django40"
-      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' }}
 
     - name: Django 4.1.x Test
       run: |
@@ -57,22 +57,27 @@ jobs:
         tox -e "py${PYTHON_VERSION/\./}-django42"
       if: ${{ env.PYTHON_VERSION == '3.8' || env.PYTHON_VERSION == '3.9' || env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
 
+    - name: Django 5.0.x Test
+      run: |
+        tox -e "py${PYTHON_VERSION/\./}-django50"
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
+
     - name: Django main Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-djangomain"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.12' || env.PYTHON_VERSION == '3.13' }}
 
     - name: social-core master Test
       run: |
         tox -e "py${PYTHON_VERSION/\./}-socialmaster"
-      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' }}
+      if: ${{ env.PYTHON_VERSION == '3.10' || env.PYTHON_VERSION == '3.11' || env.PYTHON_VERSION == '3.13' }}
 
     - name: Coverage
       run: |
         coverage combine
         coverage xml
 
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@v5
       with:
         flags: unittests
         name: Python ${{ matrix.python-version }}

@@ -1,4 +1,7 @@
 """Django ORM models for Social Auth"""
+
+from typing import Union
+
 from django.conf import settings
 from django.db import models
 from django.db.utils import IntegrityError
@@ -15,32 +18,22 @@ from .storage import (
 )
 
 USER_MODEL = (
-    getattr(settings, setting_name("USER_MODEL"), None)
-    or getattr(settings, "AUTH_USER_MODEL", None)
-    or "auth.User"
+    getattr(settings, setting_name("USER_MODEL"), None) or getattr(settings, "AUTH_USER_MODEL", None) or "auth.User"
 )
 UID_LENGTH = getattr(settings, setting_name("UID_LENGTH"), 255)
 EMAIL_LENGTH = getattr(settings, setting_name("EMAIL_LENGTH"), 254)
-NONCE_SERVER_URL_LENGTH = getattr(
-    settings, setting_name("NONCE_SERVER_URL_LENGTH"), 255
-)
-ASSOCIATION_SERVER_URL_LENGTH = getattr(
-    settings, setting_name("ASSOCIATION_SERVER_URL_LENGTH"), 255
-)
-ASSOCIATION_HANDLE_LENGTH = getattr(
-    settings, setting_name("ASSOCIATION_HANDLE_LENGTH"), 255
-)
+NONCE_SERVER_URL_LENGTH = getattr(settings, setting_name("NONCE_SERVER_URL_LENGTH"), 255)
+ASSOCIATION_SERVER_URL_LENGTH = getattr(settings, setting_name("ASSOCIATION_SERVER_URL_LENGTH"), 255)
+ASSOCIATION_HANDLE_LENGTH = getattr(settings, setting_name("ASSOCIATION_HANDLE_LENGTH"), 255)
 
 
 class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
     """Abstract Social Auth association model"""
 
-    user = models.ForeignKey(
-        USER_MODEL, related_name="social_auth", on_delete=models.CASCADE
-    )
+    user = models.ForeignKey(USER_MODEL, related_name="social_auth", on_delete=models.CASCADE)
     provider = models.CharField(max_length=32)
     uid = models.CharField(max_length=UID_LENGTH, db_index=True)
-    extra_data = models.JSONField(default=dict)
+    extra_data = models.JSONField(default=dict, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
     objects = UserSocialAuthManager()
@@ -53,11 +46,15 @@ class AbstractUserSocialAuth(models.Model, DjangoUserMixin):
         abstract = True
 
     @classmethod
-    def get_social_auth(cls, provider, uid):
-        try:
-            return cls.objects.select_related("user").get(provider=provider, uid=uid)
-        except cls.DoesNotExist:
-            return None
+    def get_social_auth(cls, provider: str, uid: Union[str, int]):
+        if not isinstance(uid, str):
+            uid = str(uid)
+        for social in cls.objects.select_related("user").filter(provider=provider, uid=uid):
+            # We need to compare to filter out case-insensitive lookups in
+            # some databases (MySQL/MariaDB)
+            if social.uid == uid:
+                return social
+        return None
 
     @classmethod
     def username_max_length(cls):
